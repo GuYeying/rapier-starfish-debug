@@ -1,0 +1,42 @@
+[package]
+name = "rapier-starfish-debug"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Rapier2D 物理适配层：物理世界封装 + starfish-render 通用 debug 渲染 + 帧循环集成"
+
+# 2D 先行；3D 走 feature 后续点亮（设计文档 §7）
+[features]
+default = []
+2d = ["dep:rapier2d"]
+3d = ["dep:rapier3d"]
+
+[dependencies]
+rapier2d = { version = "0.36.1", features = ["debug-render", "parallel"], optional = true }
+rapier3d = { version = "0.36.1", features = ["debug-render", "parallel"], optional = true }
+# starfish 家族：本仓库与 starfish 同机共存的路径依赖（设计文档 §3——
+# 后续可换 git/publish 依赖，版本契约 = starfish workspace 当前主线）
+starfish-render = { path = "../starfish/crates/starfish-render" }
+starfish-gfx = { path = "../starfish/crates/starfish-gfx" }
+starfish-std = { path = "../starfish/crates/starfish-std" }
+glam = { version = "0.33.2", features = ["bytemuck"] }
+# 公共接口暴露 wgpu 类型（BufferUsages/IndexFormat/Color）——版本契约：
+# 必须与 starfish-render 解析到同版本（设计文档 §3）
+wgpu = { version = "30.0.1", default-features = false, features = ["std"] }
+bytemuck = "1"
+
+[dev-dependencies]
+# 示例（debug_render_demo / debug_render_demo_3d）用：窗口/事件 + 入口宏
+starfish-we = { path = "../starfish/crates/starfish-we" }
+# 示例用 RenderEntry::async_new——we feature 只进 dev 面，库依赖保持
+# we-free（设计文档 §3 定约的落地形态：feature unification 仅及测试/示例）
+starfish-render = { path = "../starfish/crates/starfish-render", features = ["we"] }
+
+# ── debug 渲染验收示例（双开命名空间见 lib.rs；required-features 门控）──
+[[example]]
+name = "debug_render_demo_2d"
+required-features = ["2d"]
+
+[[example]]
+name = "debug_render_demo_3d"
+required-features = ["3d"]

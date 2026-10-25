@@ -79,6 +79,22 @@ impl PhysicsWorld {
         steps
     }
 
+    /// 带事件处理的 [`Self::step_frame`]（碰撞/触发力事件经 handler 回调
+    /// ——碰撞体须 `active_events(COLLISION_EVENTS)` 选中。宿主自持
+    /// `ChannelEventCollector` 传入即可，step 次数语义不变）。
+    pub fn step_frame_with_events(
+        &mut self,
+        real_dt: f32,
+        handler: &dyn rapier2d::prelude::EventHandler,
+    ) -> u32 {
+        let steps = self.clock.advance(real_dt);
+        for _ in 0..steps {
+            self.inner.step_with_events(&(), handler);
+        }
+        self.sim_time += steps as f32 * self.dt();
+        steps
+    }
+
     /// 固定步长（秒）。
     pub fn dt(&self) -> f32 {
         self.inner.integration_parameters.dt
@@ -182,5 +198,65 @@ mod tests {
         assert_eq!(world.dt(), 1.0 / 30.0);
         assert_eq!(world.step_frame(1.0 / 30.0), 1);
         assert!((world.sim_time() - 1.0 / 30.0).abs() < 1e-6);
+    }
+
+    /// 批次 47 隔离测试：带事件步进 + 射线查询（绑定层 FAIL 的分层定位）
+    #[test]
+    fn 带事件步进_与_射线查询_隔离() {
+        use rapier2d::prelude::{
+            ActiveEvents, ChannelEventCollector, ColliderBuilder, CollisionEvent, QueryFilter,
+            Ray, RigidBodyBuilder, Vector,
+        };
+        // 显式路径压过 rapier prelude glob（同名 PhysicsWorld）
+        let mut world = crate::dim2::world::PhysicsWorld::new([0.0, -9.81]);
+        world.get().insert(
+            RigidBodyBuilder::fixed().translation(Vector::new(0.0, -2.0)),
+            ColliderBuilder::cuboid(6.0, 0.5),
+        );
+        // 触发区（sensor + events）
+        world.get().insert(
+            RigidBodyBuilder::fixed().translation(Vector::new(0.0, 0.6)),
+            ColliderBuilder::cuboid(1.5, 0.3)
+                .sensor(true)
+                .active_events(ActiveEvents::COLLISION_EVENTS),
+        );
+        // 落球穿越触发区
+        let (_ball, _) = world.get().insert(
+            RigidBodyBuilder::dynamic()
+                .translation(Vector::new(0.0, 3.0))
+                .can_sleep(false),
+            ColliderBuilder::ball(0.15),
+        );
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (ftx, _frx) = std::sync::mpsc::channel();
+        let (_ttx, _trx) = std::sync::mpsc::channel();
+        let collector = ChannelEventCollector::new(tx, ftx, _ttx);
+        let mut started = 0;
+        let mut stopped = 0;
+        for _ in 0..90 {
+            world.step_frame_with_events(1.0 / 60.0, &collector);
+            while let Ok(ev) = rx.try_recv() {
+                match ev {
+                    CollisionEvent::Started(..) => started += 1,
+                    CollisionEvent::Stopped(..) => stopped += 1,
+                    _ => {}
+                }
+            }
+        }
+        assert!(started > 0, "应有 started 事件，实际 {started}");
+        assert!(stopped > 0, "应有 stopped 事件，实际 {stopped}");
+
+        // 射线：x=5 垂直向下命中地面（顶面 y=-1.5，起点 y=1 → toi 2.5）
+        let ray = Ray::new([5.0, 1.0].into(), [0.0, -1.0].into());
+        let hit = world
+            .get_ref()
+            .cast_ray(&ray, 100.0, true, QueryFilter::default());
+        assert!(hit.is_some(), "射线应命中地面");
+        assert!(
+            (hit.unwrap().1 - 2.5).abs() < 0.05,
+            "toi = {:?}",
+            hit.unwrap().1
+        );
     }
 }

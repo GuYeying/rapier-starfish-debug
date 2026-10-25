@@ -105,6 +105,14 @@ impl DebugLinesRenderer {
         access.write_buffer(&self.camera_buf, 0, bytemuck::bytes_of(&m));
     }
 
+    /// 任意 MVP 直写（**全局相机对齐原语**，渲染架构批次 B）：宿主把
+    /// 全局相机矩阵（starfish-pygame `camera_mvp_for` 产出，列主
+    /// `[[f32; 4]; 4]`）写入——调试线与引擎管线同一定约（group0/b0 =
+    /// 64B mat4 MVP），set_camera 一处设置、全体生效。
+    pub fn set_camera_mvp(&self, access: &RenderResourceAccess, mvp: [[f32; 4]; 4]) {
+        access.write_buffer(&self.camera_buf, 0, bytemuck::bytes_of(&mvp));
+    }
+
     /// 相机 bind group（供宿主**自建管线共享同一相机**——shape.wgsl 契约：
     /// group0/binding0 = 64B mat4 MVP。宿主管线的布局含同一绑定即可在
     /// 同一相机下绘制自己的几何）。

@@ -59,6 +59,22 @@ impl PhysicsWorld {
         steps
     }
 
+    /// 带事件处理的 [`Self::step_frame`]（碰撞/触发力事件经 handler 回调
+    /// ——碰撞体须 `active_events(COLLISION_EVENTS)` 选中。宿主自持
+    /// `ChannelEventCollector` 传入即可，step 次数语义不变）。
+    pub fn step_frame_with_events(
+        &mut self,
+        real_dt: f32,
+        handler: &dyn rapier3d::prelude::EventHandler,
+    ) -> u32 {
+        let steps = self.clock.advance(real_dt);
+        for _ in 0..steps {
+            self.inner.step_with_events(&(), handler);
+        }
+        self.sim_time += steps as f32 * self.dt();
+        steps
+    }
+
     /// 固定步长（秒）。
     pub fn dt(&self) -> f32 {
         self.inner.integration_parameters.dt

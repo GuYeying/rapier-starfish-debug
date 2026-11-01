@@ -1,6 +1,6 @@
 [package]
 name = "rapier-starfish-debug"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
 description = "Rapier2D 物理适配层：物理世界封装 + starfish-render 通用 debug 渲染 + 帧循环集成"
@@ -19,6 +19,7 @@ rapier3d = { version = "0.36.1", features = ["debug-render", "parallel"], option
 starfish-render = { path = "../starfish/crates/starfish-render" }
 starfish-gfx = { path = "../starfish/crates/starfish-gfx" }
 starfish-std = { path = "../starfish/crates/starfish-std" }
+starfish-debug = { path = "../starfish/crates/starfish-debug" }
 glam = { version = "0.33.2", features = ["bytemuck"] }
 # 公共接口暴露 wgpu 类型（BufferUsages/IndexFormat/Color）——版本契约：
 # 必须与 starfish-render 解析到同版本（设计文档 §3）

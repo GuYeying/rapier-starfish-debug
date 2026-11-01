@@ -96,7 +96,7 @@ async fn app_body() -> Result<(), Box<dyn std::error::Error>> {
                             s.sleep_eligible_color_multiplier = uniform;
                             s.disabled_color_multiplier = uniform;
                         }
-                        starfish_std::debug::console_log(&format!(
+                        starfish_debug::log_warn!(&format!(
                             "[demo] 睡眠体变暗标识 = {}",
                             !was_uniform
                         ));
@@ -104,12 +104,12 @@ async fn app_body() -> Result<(), Box<dyn std::error::Error>> {
                     KeyCode::Equal | KeyCode::NumpadAdd => {
                         ppm = (ppm + 10.0).min(200.0);
                         renderer.set_camera_ortho(&access, surface.size(), ppm);
-                        starfish_std::debug::console_log(&format!("[demo] 缩放 = {ppm} px/m"));
+                        starfish_debug::log_warn!(&format!("[demo] 缩放 = {ppm} px/m"));
                     }
                     KeyCode::Minus | KeyCode::NumpadSubtract => {
                         ppm = (ppm - 10.0).max(10.0);
                         renderer.set_camera_ortho(&access, surface.size(), ppm);
-                        starfish_std::debug::console_log(&format!("[demo] 缩放 = {ppm} px/m"));
+                        starfish_debug::log_warn!(&format!("[demo] 缩放 = {ppm} px/m"));
                     }
                     _ => {}
                 },
@@ -140,7 +140,7 @@ async fn app_body() -> Result<(), Box<dyn std::error::Error>> {
 
         frames += 1;
         if frames % 300 == 0 {
-            starfish_std::debug::console_log(&format!(
+            starfish_debug::log_warn!(&format!(
                 "[demo] 帧 {frames}，线段 {}，mode = {:?}",
                 sink.line_count(),
                 draw.pipeline().mode

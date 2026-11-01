@@ -120,7 +120,7 @@ async fn app_body() -> Result<(), Box<dyn std::error::Error>> {
                             s.sleep_eligible_color_multiplier = uniform;
                             s.disabled_color_multiplier = uniform;
                         }
-                        starfish_std::debug::console_log(&format!(
+                        starfish_debug::log_warn!(&format!(
                             "[demo3d] 睡眠体变暗标识 = {}",
                             !was_uniform
                         ));
@@ -153,7 +153,7 @@ async fn app_body() -> Result<(), Box<dyn std::error::Error>> {
 
         frames += 1;
         if frames % 300 == 0 {
-            starfish_std::debug::console_log(&format!(
+            starfish_debug::log_warn!(&format!(
                 "[demo3d] 帧 {frames}，线段 {}，mode = {:?}",
                 sink.line_count(),
                 draw.pipeline().mode

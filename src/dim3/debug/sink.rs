@@ -57,7 +57,7 @@ impl LineSink {
         if self.geometry.vertices.len() + 2 > u16::MAX as usize {
             if !self.overflow_warned {
                 self.overflow_warned = true;
-                starfish_std::debug::console_log(
+                starfish_debug::log_warn!(
                     "[rapier-starfish-debug] LineSink(3D) 顶点逼近 u16 上限，后续线段丢弃——\
                      触发设计文档 §2 换轨条件（render 直绘无索引路线）",
                 );

@@ -63,3 +63,19 @@ cargo test --features 2d,3d               # 双开全量（26/27/44 单测）
 （示例另需 `starfish-we`）。克隆本仓库后如路径不符，clone starfish 到同级
 目录即可；后续可换 git/publish 依赖（wgpu 版本契约：须与 starfish-render
 解析到同版本 30.0.1）。
+
+
+## 生态仓库矩阵
+
+| 仓库 | 角色 |
+|---|---|
+| [starfish](https://github.com/GuYeying/starfish) | 引擎本体（纯 Rust 跨平台库，零 Python 资产） |
+| [pygamest](https://github.com/GuYeying/pygamest) | Python 绑定层（RustPython 内嵌 + 原生 pygame 面） |
+| [pygamest-dev](https://github.com/GuYeying/pygamest-dev) | 开发解释器（python.exe 形态，零 Rust 工具链） |
+| [pygamest-runtime](https://github.com/GuYeying/pygamest-runtime) | 游戏运行时（玩家单元，入口加密嵌入 + 散文件清单） |
+| [egui-starfish-we](https://github.com/GuYeying/egui-starfish-we) | egui × starfish-we 适配（vendored egui-winit fork） |
+| [rapier-starfish-debug](https://github.com/GuYeying/rapier-starfish-debug) | Rapier 物理适配 + 通用 debug 渲染（本仓） |
+
+## 协议
+
+MIT OR Apache-2.0 双协议（见 LICENSE-MIT / LICENSE-APACHE）。

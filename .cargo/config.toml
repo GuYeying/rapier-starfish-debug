@@ -1,12 +1,18 @@
-# 本仓库本地镜像配置（仅影响本仓库；直连 crates.io 不可用时走 rsproxy）
-[source.crates-io]
-replace-with = 'rsproxy-sparse'
-
-[source.rsproxy-sparse]
-registry = "sparse+https://rsproxy.cn/index/"
-
-[registries.rsproxy]
-index = "sparse+https://rsproxy.cn/index/"
-
-[net]
-git-fetch-with-cli = true
+# 开发者本机覆盖（gitignore——使用者无此文件，依赖自动走 GitHub）
+paths = [
+  "../starfish/crates/starfish-std",
+  "../starfish/crates/starfish-debug",
+  "../starfish/crates/starfish-we",
+  "../starfish/crates/starfish-time",
+  "../starfish/crates/starfish-permission",
+  "../starfish/crates/starfish-io",
+  "../starfish/crates/starfish-net",
+  "../starfish/crates/starfish-dialog",
+  "../starfish/crates/starfish-gamepad",
+  "../starfish/crates/starfish-render",
+  "../starfish/crates/starfish-gfx",
+  "../starfish/crates/starfish-font",
+  "../starfish/crates/starfish-audio",
+  "../starfish/crates/starfish-video",
+  "../starfish/crates/starfish-pygame",
+]

@@ -18,4 +18,6 @@ pub mod prelude {
     pub use crate::dim3::world::PhysicsWorld;
     pub use crate::step::StepAccumulator;
     pub use rapier3d::prelude::*;
+    // 体素碰撞体（ColliderBuilder::voxelized_mesh）的填充模式枚举
+    pub use rapier3d::parry::transformation::voxelization::FillMode;
 }

@@ -120,6 +120,17 @@ impl DebugLinesRenderer {
         &self.camera_bind
     }
 
+    /// 相机 uniform 缓冲（**诊断口**——宿主回读取证 draw 时点真值；
+    /// 写链二分专用）
+    pub fn camera_buffer(&self) -> &Arc<wgpu::Buffer> {
+        &self.camera_buf
+    }
+
+    /// 动态顶点缓冲（**诊断口**——同上；上一帧 upload 内容对照组）
+    pub fn vertex_buffer(&self) -> &Arc<wgpu::Buffer> {
+        &self.vbo
+    }
+
     /// 编码绘制（调用方已 `begin` 的通道；可与其它绘制内容自由合批）。
     ///
     /// 空 sink 直接返回（无命令产生）。缓冲不足时按 2 倍扩容重建
@@ -130,10 +141,15 @@ impl DebugLinesRenderer {
         pass: &mut RenderPass,
         sink: &LineSink,
     ) {
+        self.ensure_capacity(access, sink);
+        let bind = &self.camera_bind;
+        self.draw_with(access, pass, sink, bind);
+    }
+
+    /// 容量保障（不足按 2 倍扩容重建——只增不减，线数逐帧抖动不触发
+    /// 反复重建）。
+    fn ensure_capacity(&mut self, access: &RenderResourceAccess, sink: &LineSink) {
         let (vc, ic) = (sink.vertex_count(), sink.geometry().indices.len());
-        if ic == 0 {
-            return;
-        }
         if vc > self.capacity.0 || ic > self.capacity.1 {
             // 顶点容量钳在 u16 上限（sink 守卫同款；超出部分已被 sink 丢弃）
             let nv = (vc.max(self.capacity.0) * 2).min(u16::MAX as usize);
@@ -150,11 +166,27 @@ impl DebugLinesRenderer {
             );
             self.capacity = (nv, ni);
         }
+    }
+
+    /// 指定相机 bind group 绘制（**宿主每帧自管相机口**：宿主以一次性
+    /// inline uniform buffer + 新建 bind group 交付相机——绕开共享缓冲
+    /// 的任何写入时序问题；布局契约不变 group0/b0 = 64B mat4）。
+    pub fn draw_with(
+        &self,
+        access: &RenderResourceAccess,
+        pass: &mut RenderPass,
+        sink: &LineSink,
+        camera_bind: &BindGroup,
+    ) {
+        let ic = sink.geometry().indices.len();
+        if ic == 0 {
+            return;
+        }
         access.write_buffer(&self.vbo, 0, sink.geometry().vertices_bytes());
         access.write_buffer(&self.ibo, 0, sink.geometry().index_bytes());
 
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &self.camera_bind);
+        pass.set_bind_group(0, camera_bind);
         pass.set_vertex_buffer(0, &self.vbo);
         pass.set_index_buffer(&self.ibo, wgpu::IndexFormat::Uint16);
         pass.draw_indexed(0..ic as u32, 0, 0..1);

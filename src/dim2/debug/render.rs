@@ -120,17 +120,6 @@ impl DebugLinesRenderer {
         &self.camera_bind
     }
 
-    /// 相机 uniform 缓冲（**诊断口**——宿主回读取证 draw 时点真值；
-    /// 写链二分专用）
-    pub fn camera_buffer(&self) -> &Arc<wgpu::Buffer> {
-        &self.camera_buf
-    }
-
-    /// 动态顶点缓冲（**诊断口**——同上；上一帧 upload 内容对照组）
-    pub fn vertex_buffer(&self) -> &Arc<wgpu::Buffer> {
-        &self.vbo
-    }
-
     /// 编码绘制（调用方已 `begin` 的通道；可与其它绘制内容自由合批）。
     ///
     /// 空 sink 直接返回（无命令产生）。缓冲不足时按 2 倍扩容重建

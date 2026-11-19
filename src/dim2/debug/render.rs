@@ -9,6 +9,7 @@
 //! `set_index_buffer` / `draw_indexed` 公共底层（索引数精确、零重建）。
 //! 管线构建仍借一次 `shape_mesh`（只为提取 `ShapeVertex` 顶点布局）。
 
+use std::cell::RefCell;
 use std::sync::Arc;
 
 use starfish_gfx::geometry::Geometry;
@@ -38,7 +39,16 @@ pub struct DebugLinesRenderer {
     pipeline: Arc<RenderPipeline>,
     camera_buf: Arc<wgpu::Buffer>,
     camera_bind: BindGroup,
-    /// 动态顶点/索引缓冲（自持；只增扩容）
+    /// 动态顶点/索引缓冲 + 容量（**RefCell 内部可变性**——`draw_with`
+    /// 保持 `&self` 宿主口签名，但扩容契约自含：任何消费路径（draw/
+    /// draw_with）都先过容量保障，宿主忘调前置也不撞 wgpu 越界校验
+    /// ——2026-11-19 实测：pygamest 显式 MVP 分支直调 draw_with，
+    /// F 连按接触线涨过初始 256 顶点 → 写 9408B 撞 7168B 容量 panic）
+    buffers: RefCell<GpuBuffers>,
+}
+
+/// 动态缓冲组（vbo/ibo + 当前容量；只增扩容）
+struct GpuBuffers {
     vbo: Arc<wgpu::Buffer>,
     ibo: Arc<wgpu::Buffer>,
     /// 当前缓冲容量（顶点数 / 索引数）
@@ -87,9 +97,11 @@ impl DebugLinesRenderer {
             pipeline,
             camera_buf,
             camera_bind,
-            vbo,
-            ibo,
-            capacity: (256, 512),
+            buffers: RefCell::new(GpuBuffers {
+                vbo,
+                ibo,
+                capacity: (256, 512),
+            }),
         }
     }
 
@@ -130,36 +142,39 @@ impl DebugLinesRenderer {
         pass: &mut RenderPass,
         sink: &LineSink,
     ) {
-        self.ensure_capacity(access, sink);
         let bind = &self.camera_bind;
         self.draw_with(access, pass, sink, bind);
     }
 
     /// 容量保障（不足按 2 倍扩容重建——只增不减，线数逐帧抖动不触发
     /// 反复重建）。
-    fn ensure_capacity(&mut self, access: &RenderResourceAccess, sink: &LineSink) {
+    fn ensure_capacity(&self, access: &RenderResourceAccess, sink: &LineSink) {
+        let mut b = self.buffers.borrow_mut();
         let (vc, ic) = (sink.vertex_count(), sink.geometry().indices.len());
-        if vc > self.capacity.0 || ic > self.capacity.1 {
+        if vc > b.capacity.0 || ic > b.capacity.1 {
             // 顶点容量钳在 u16 上限（sink 守卫同款；超出部分已被 sink 丢弃）
-            let nv = (vc.max(self.capacity.0) * 2).min(u16::MAX as usize);
-            let ni = ic.max(self.capacity.1) * 2;
-            self.vbo = access.create_raw_buffer(
+            let nv = (vc.max(b.capacity.0) * 2).min(u16::MAX as usize);
+            let ni = ic.max(b.capacity.1) * 2;
+            b.vbo = access.create_raw_buffer(
                 Some("rapier_debug_vbo"),
                 (nv * ShapeVertex::size()) as u64,
                 BufferUsages::VERTEX | BufferUsages::COPY_DST,
             );
-            self.ibo = access.create_raw_buffer(
+            b.ibo = access.create_raw_buffer(
                 Some("rapier_debug_ibo"),
                 (ni * std::mem::size_of::<u16>()) as u64,
                 BufferUsages::INDEX | BufferUsages::COPY_DST,
             );
-            self.capacity = (nv, ni);
+            b.capacity = (nv, ni);
         }
     }
 
     /// 指定相机 bind group 绘制（**宿主每帧自管相机口**：宿主以一次性
     /// inline uniform buffer + 新建 bind group 交付相机——绕开共享缓冲
     /// 的任何写入时序问题；布局契约不变 group0/b0 = 64B mat4）。
+    ///
+    /// 扩容契约自含（入口先过 `ensure_capacity`——`&self` 签名靠
+    /// RefCell 内部可变性兑现；宿主直调本口不前置扩容也安全）。
     pub fn draw_with(
         &self,
         access: &RenderResourceAccess,
@@ -171,13 +186,15 @@ impl DebugLinesRenderer {
         if ic == 0 {
             return;
         }
-        access.write_buffer(&self.vbo, 0, sink.geometry().vertices_bytes());
-        access.write_buffer(&self.ibo, 0, sink.geometry().index_bytes());
+        self.ensure_capacity(access, sink);
+        let b = self.buffers.borrow();
+        access.write_buffer(&b.vbo, 0, sink.geometry().vertices_bytes());
+        access.write_buffer(&b.ibo, 0, sink.geometry().index_bytes());
 
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, camera_bind);
-        pass.set_vertex_buffer(0, &self.vbo);
-        pass.set_index_buffer(&self.ibo, wgpu::IndexFormat::Uint16);
+        pass.set_vertex_buffer(0, &b.vbo);
+        pass.set_index_buffer(&b.ibo, wgpu::IndexFormat::Uint16);
         pass.draw_indexed(0..ic as u32, 0, 0..1);
     }
 }
